@@ -1,160 +1,206 @@
 import os
 import time
 import pandas as pd
+import plotly.express as px
 import streamlit as st
+
+# Import core modules
 from src.file_organizer import organize_files
 from src.data_extractor import extract_emails
+from src.speed_optimizer import measure_execution_time
 
-# Page Configuration & Styling
+# ---------------------------------------------------------
+# PAGE CONFIGURATION & STYLING
+# ---------------------------------------------------------
 st.set_page_config(
-    page_title="AutoFlow UI | CodeAlpha Suite",
+    page_title="AutoFlow | CodeAlpha Task Automation",
     page_icon="⚡",
     layout="wide"
 )
 
-# Custom CSS for UI Enhancement
 st.markdown("""
     <style>
     .main-header {
-        font-size: 2.2rem;
-        font-weight: 700;
-        color: #4F46E5;
-        margin-bottom: 0.5rem;
-    }
-    .sub-header {
-        color: #6B7280;
+        background: linear-gradient(135deg, #1E3A8A 0%, #3B82F6 100%);
+        padding: 1.5rem 2rem;
+        border-radius: 12px;
+        color: white;
         margin-bottom: 2rem;
     }
     .metric-card {
-        background-color: #F3F4F6;
-        padding: 1.2rem;
-        border-radius: 10px;
-        border-left: 5px solid #4F46E5;
+        background-color: #F8FAFC;
+        border-left: 5px solid #2563EB;
+        padding: 1rem;
+        border-radius: 8px;
     }
     </style>
 """, unsafe_allow_html=True)
 
-# Application Header
-st.markdown("<div class='main-header'>⚡ CodeAlpha Task Automation Suite</div>", unsafe_allow_html=True)
-st.markdown("<div class='sub-header'>Interactive Web Interface for Automated File Sorting, Data Extraction & Performance Metrics</div>", unsafe_allow_html=True)
+# ---------------------------------------------------------
+# HEADER
+# ---------------------------------------------------------
+st.markdown("""
+    <div class="main-header">
+        <h1>⚡ AutoFlow Automation Engine</h1>
+        <p>File Sorting • Data Pattern Extraction • Performance Benchmark Optimization</p>
+    </div>
+""", unsafe_allow_html=True)
 
-# Sidebar Navigation
-st.sidebar.image("https://img.icons8.com/color/96/python.png", width=80)
-st.sidebar.title("Navigation")
-menu = st.sidebar.radio("Select Tool", ["📁 File Sorter", "📧 Email Extractor", "📊 Execution Logs"])
+# ---------------------------------------------------------
+# SIDEBAR
+# ---------------------------------------------------------
+st.sidebar.image("https://img.icons8.com/color/96/python.png", width=60)
+st.sidebar.title("Automation Hub")
+
+menu = st.sidebar.radio(
+    "Select Feature",
+    ["📁 File Sorting", "📧 Data Extraction", "⚡ Performance Metrics & Logs"]
+)
 
 st.sidebar.markdown("---")
-st.sidebar.info("**Internship Deliverable**\nDeveloped for CodeAlpha Python Internship (MSME Verified).")
+st.sidebar.info("**CodeAlpha Internship Project**\nPython Task Automation Suite")
+
+# Log Helper Function
+def log_metric(action, duration, details):
+    os.makedirs("logs", exist_ok=True)
+    timestamp = time.strftime("%Y-%m-%d %H:%M:%S")
+    log_entry = f"{timestamp} | Action: {action} | Duration: {duration:.6f}s | Details: {details}\n"
+    with open("logs/execution_log.txt", "a", encoding="utf-8") as f:
+        f.write(log_entry)
 
 # ---------------------------------------------------------
-# TAB 1: FILE SORTER
+# FEATURE 1: FILE SORTING
 # ---------------------------------------------------------
-if menu == "📁 File Sorter":
-    st.header("Directory & File Organizer")
-    st.write("Automatically categorize raw files inside `data/raw/` into organized sub-folders.")
+if menu == "📁 File Sorting":
+    st.subheader("📁 Automated File Sorter")
+    st.write("Scan and organize raw unstructured files into designated subdirectories based on extension.")
 
-    col1, col2 = st.columns([2, 1])
+    col1, col2 = st.columns([1.5, 1])
 
     with col1:
-        target_dir = st.text_input("Target Directory Path", value="data/raw")
+        dir_path = st.text_input("Target Directory Folder", value="data/raw")
         
-        if st.button("🚀 Run File Organizer", type="primary"):
-            start_time = time.time()
-            count = organize_files(target_dir)
-            elapsed = time.time() - start_time
+        if st.button("🚀 Run File Sorter", type="primary"):
+            if not os.path.exists(dir_path):
+                st.error(f"Directory `{dir_path}` does not exist.")
+            else:
+                # Wrap execution using speed optimizer measurement
+                @measure_execution_time
+                def execute_sorting(path):
+                    return organize_files(path)
 
-            st.success(f"Successfully processed and organized {count} file(s)!")
+                with st.spinner("Sorting files..."):
+                    count, exec_time = execute_sorting(dir_path)
 
-            # Log record
-            timestamp = time.strftime("%Y-%m-%d %H:%M:%S")
-            log_line = f"[{timestamp}] Action: File Organization | Duration: {elapsed:.4f}s | Details: Organized {count} files\n"
-            os.makedirs("logs", exist_ok=True)
-            with open("logs/execution_log.txt", "a", encoding="utf-8") as f:
-                f.write(log_line)
+                st.success(f"Organized {count} file(s) in {exec_time:.4f} seconds!")
+                log_metric("File Sorting", exec_time, f"Sorted {count} files")
+
+                m1, m2 = st.columns(2)
+                m1.metric("Files Moved", count)
+                m2.metric("Latency", f"{exec_time:.4f}s")
 
     with col2:
-        st.subheader("Directory Preview")
-        if os.path.exists(target_dir):
-            items = os.listdir(target_dir)
-            st.write(f"**Current Items ({len(items)}):**")
-            st.json(items)
-        else:
-            st.warning("Directory does not exist.")
+        st.markdown("##### Folder Explorer")
+        if os.path.exists(dir_path):
+            files = os.listdir(dir_path)
+            st.dataframe(pd.DataFrame(files, columns=["Directory Contents"]), use_container_width=True, height=250)
 
 # ---------------------------------------------------------
-# TAB 2: EMAIL EXTRACTOR
+# FEATURE 2: DATA EXTRACTION
 # ---------------------------------------------------------
-elif menu == "📧 Email Extractor":
-    st.header("Regex Pattern Email Extractor")
-    st.write("Extract clean, deduplicated email addresses from unstructured raw text files.")
+elif menu == "📧 Data Extraction":
+    st.subheader("📧 Regex Data Extraction Engine")
+    st.write("Extract, clean, and deduplicate valid email address patterns from unstructured raw input files.")
 
-    uploaded_file = st.file_uploader("Upload a raw text/data file", type=["txt", "csv", "log"])
+    uploaded_file = st.file_uploader("Upload raw file for scanning", type=["txt", "csv", "log"])
 
     if uploaded_file is not None:
-        # Save temp file
-        temp_path = os.path.join("data/raw", uploaded_file.name)
+        raw_path = os.path.join("data/raw", uploaded_file.name)
         os.makedirs("data/raw", exist_ok=True)
-        with open(temp_path, "wb") as f:
+        with open(raw_path, "wb") as f:
             f.write(uploaded_file.getbuffer())
 
-        st.info(f"File uploaded to `{temp_path}`")
-
+        st.info(f"File uploaded to `{raw_path}`")
         out_path = "data/processed/extracted_emails.txt"
 
-        if st.button("🔍 Extract Emails", type="primary"):
-            start_time = time.time()
-            count = extract_emails(temp_path, out_path)
-            elapsed = time.time() - start_time
+        if st.button("🔍 Extract Email Patterns", type="primary"):
+            @measure_execution_time
+            def execute_extraction(inp, out):
+                return extract_emails(inp, out)
 
-            st.success(f"Found {count} unique email address(es)!")
+            with st.spinner("Executing regex pattern parsing..."):
+                count, exec_time = execute_extraction(raw_path, out_path)
 
-            # Metric Columns
-            m1, m2 = st.columns(2)
-            m1.metric("Emails Found", count)
-            m2.metric("Processing Time", f"{elapsed:.4f} sec")
+            st.success(f"Successfully extracted {count} unique email pattern(s)!")
+            log_metric("Data Extraction", exec_time, f"Extracted {count} emails")
 
-            # Display extracted results
+            c1, c2 = st.columns(2)
+            c1.metric("Extracted Emails", count)
+            c2.metric("Execution Speed", f"{exec_time:.4f}s")
+
             if os.path.exists(out_path):
                 with open(out_path, "r", encoding="utf-8") as f:
-                    emails = f.readlines()
+                    results = f.read()
                 
-                st.subheader("Extracted Results")
-                st.code("".join(emails) if emails else "No emails found.", language="text")
-
-                # Download Button
-                st.download_button(
-                    label="📥 Download Extracted Emails",
-                    data="".join(emails),
-                    file_name="extracted_emails.txt",
-                    mime="text/plain"
-                )
-
-            # Log Record
-            timestamp = time.strftime("%Y-%m-%d %H:%M:%S")
-            log_line = f"[{timestamp}] Action: Email Extraction | Duration: {elapsed:.4f}s | Details: Extracted {count} emails\n"
-            os.makedirs("logs", exist_ok=True)
-            with open("logs/execution_log.txt", "a", encoding="utf-8") as f:
-                f.write(log_line)
+                st.subheader("Extracted Email Output")
+                st.code(results if results else "No valid email patterns found.")
+                st.download_button("📥 Download Extracted Emails", data=results, file_name="extracted_emails.txt")
 
 # ---------------------------------------------------------
-# TAB 3: EXECUTION LOGS
+# FEATURE 3: PERFORMANCE METRICS & LOGS
 # ---------------------------------------------------------
-elif menu == "📊 Execution Logs":
-    st.header("System Performance & Logs")
+elif menu == "⚡ Performance Metrics & Logs":
+    st.subheader("⚡ Performance Metrics & Execution Benchmarks")
+    st.write("Track runtime performance trends, execution latencies, and speed optimization benchmarks.")
+
     log_file = "logs/execution_log.txt"
 
     if os.path.exists(log_file):
         with open(log_file, "r", encoding="utf-8") as f:
-            log_data = f.readlines()
+            lines = f.readlines()
 
-        if log_data:
-            st.subheader("Real-Time Execution History")
-            st.text_area("System Log File (`logs/execution_log.txt`)", value="".join(log_data), height=300)
+        parsed_metrics = []
+        for line in lines:
+            try:
+                parts = line.strip().split(" | ")
+                if len(parts) == 4:
+                    timestamp, action, duration, details = parts
+                    dur_val = float(duration.replace("Duration: ", "").replace("s", ""))
+                    parsed_metrics.append({
+                        "Timestamp": timestamp,
+                        "Feature": action.replace("Action: ", ""),
+                        "Execution Latency (Seconds)": dur_val,
+                        "Details": details.replace("Details: ", "")
+                    })
+            except Exception:
+                continue
 
-            if st.button("🗑️ Clear Log History"):
-                open(log_file, "w").close()
-                st.experimental_rerun()
+        if parsed_metrics:
+            df = pd.DataFrame(parsed_metrics)
+
+            # Metric Summary Cards
+            col_a, col_b, col_c = st.columns(3)
+            col_a.metric("Total Operations", len(df))
+            col_b.metric("Avg Latency", f"{df['Execution Latency (Seconds)'].mean():.4f}s")
+            col_c.metric("Optimal Fast Run", f"{df['Execution Latency (Seconds)'].min():.4f}s")
+
+            st.markdown("---")
+            st.markdown("##### Real-Time Execution Latency Chart")
+
+            fig = px.line(
+                df, 
+                x="Timestamp", 
+                y="Execution Latency (Seconds)", 
+                color="Feature",
+                markers=True,
+                title="Performance Optimization Benchmark (Latency over Time)"
+            )
+            fig.update_layout(template="plotly_white")
+            st.plotly_chart(fig, use_container_width=True)
+
+            st.markdown("##### System Log History Table")
+            st.dataframe(df, use_container_width=True)
         else:
-            st.info("Log file is empty.")
+            st.info("Log file is currently empty.")
     else:
-        st.warning("No execution logs found yet. Run an action first!")
+        st.warning("No performance metrics available yet. Execute File Sorting or Data Extraction first!")
